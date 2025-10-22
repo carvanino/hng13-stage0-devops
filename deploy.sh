@@ -1,4 +1,4 @@
-#!/opt/homebrew/bin/bash
+#!/bin/bash
 
 echo "Running shell: $BASH_VERSION"
 set -euo pipefail
