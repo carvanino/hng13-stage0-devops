@@ -1,0 +1,47 @@
+version: "3.8"
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx_proxy
+    ports:
+      - "8080:8080"
+    environment:
+      - ACTIVE_POOL=${ACTIVE_POOL}
+    depends_on:
+      - app_blue
+      - app_green
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
+      - ./nginx/render-and-run.sh:/usr/local/bin/render-and-run.sh:ro
+    command: ["/bin/bash", "-c", "/usr/local/bin/render-and-run.sh"]
+    restart: unless-stopped
+
+  app_blue:
+    image: ${BLUE_IMAGE}
+    container_name: app_blue
+    environment:
+      - APP_POOL=blue
+      - PORT=3000
+      - RELEASE_ID=${RELEASE_ID_BLUE}
+    ports:
+      - "8081:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/version"]
+      interval: 2s
+      timeout: 2s
+      retries: 3
+
+  app_green:
+    image: ${GREEN_IMAGE}
+    container_name: app_green
+    environment:
+      - APP_POOL=green
+      - PORT=3000
+      - RELEASE_ID=${RELEASE_ID_GREEN}
+    ports:
+      - "8082:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/version"]
+      interval: 2s
+      timeout: 2s
+      retries: 3

@@ -1,0 +1,41 @@
+worker_processes auto;
+events { worker_connections 1024; }
+
+http {
+  upstream backend {
+    # Primary and backup containers — resolved via Docker service names
+    server app_blue:3000 max_fails=1 fail_timeout=2s;
+    server app_green:3000 backup;
+  }
+
+  server {
+    listen 8080;
+
+    # Tight timeouts (total request time <10s)
+    proxy_connect_timeout 1s;
+    proxy_send_timeout 3s;
+    proxy_read_timeout 5s;
+
+    location / {
+      proxy_pass http://backend;
+      proxy_http_version 1.1;
+
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+
+      # Retry policy: retry on connection errors, timeouts, and 5xx
+      proxy_next_upstream error timeout http_500 http_502 http_503 http_504;
+      proxy_next_upstream_tries 2;
+      proxy_next_upstream_timeout 8s;
+
+      # Forward app headers unchanged
+      proxy_pass_header X-App-Pool;
+      proxy_pass_header X-Release-Id;
+
+      # Disable buffering so responses/headers pass directly
+      proxy_buffering off;
+    }
+  }
+}
