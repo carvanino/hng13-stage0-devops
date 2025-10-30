@@ -12,7 +12,7 @@ services:
       - app_green
     volumes:
       - ./nginx/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
-      - ./nginx/render-and-run.sh:/usr/local/bin/render-and-run.sh:ro
+      - ./nginx/render-and-run.sh:/usr/local/bin/render-and-run.sh
     command:
       [
         "/bin/bash",
