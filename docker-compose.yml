@@ -13,7 +13,12 @@ services:
     volumes:
       - ./nginx/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
       - ./nginx/render-and-run.sh:/usr/local/bin/render-and-run.sh:ro
-    command: ["/bin/bash", "-c", "/usr/local/bin/render-and-run.sh"]
+    command:
+      [
+        "/bin/bash",
+        "-c",
+        "chmod +x /usr/local/bin/render-and-run.sh && /usr/local/bin/render-and-run.sh",
+      ]
     restart: unless-stopped
 
   app_blue:
