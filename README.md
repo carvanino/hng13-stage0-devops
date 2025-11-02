@@ -1,99 +1,126 @@
-# Blue-Green Deployment with Nginx (Failover Setup)
+# Blue-Green Deployment with Monitoring
 
-This project sets up a **Blue-Green deployment** using **Docker Compose** with **automatic failover** handled by Nginx.
+A blue-green deployment system with automated failover detection and error rate monitoring. Alerts are sent to Slack when issues are detected.
+
+## Features
+
+- Blue-green deployment with automatic failover
+- Real-time monitoring of upstream health
+- Slack alerts for failovers and high error rates
+- Chaos testing endpoints for validation
+- Zero-downtime deployments
 
 ---
 
-## 📦 Services
+## Setup
 
-- **Nginx Proxy** → Routes traffic to Blue (active) or Green (backup)
-- **App Blue** → Primary Node.js service
-- **App Green** → Backup Node.js service
+### 1. Configure Environment Variables
 
----
-
-## ⚙️ Environment Variables
-
-Create a `.env` file in the project root:
+Create a `.env` file:
 
 ```bash
-BLUE_IMAGE=yimikaade/wonderful:devops-stage-two
-GREEN_IMAGE=yimikaade/wonderful:devops-stage-two
+# Deployment configuration
 ACTIVE_POOL=blue
+BLUE_IMAGE=myapp:blue
+GREEN_IMAGE=myapp:green
 RELEASE_ID_BLUE=v1.0.0
-RELEASE_ID_GREEN=v1.0.1
-PORT=8080
+RELEASE_ID_GREEN=v1.1.0
+
+# Slack alerting
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+
+# Alert thresholds
+ERROR_RATE_THRESHOLD=2
+WINDOW_SIZE=200
+ALERT_COOLDOWN_SEC=300
+MAINTENANCE_MODE=false
 ```
 
----
-
-## 🚀 Running the Project
+### 2. Start Services
 
 ```bash
 docker-compose up -d
 ```
 
-Access the service at:
+### 3. Verify Everything is Running
 
-```
-http://localhost:8080/version
-```
+```bash
+# Check all containers are up
+docker-compose ps
 
-Expected headers:
-
-```
-X-App-Pool: blue
-X-Release-Id: v1.0.0
+# Test the application
+curl http://localhost:8080/version
+curl http://localhost:8080/healthz
 ```
 
 ---
 
-## 💥 Simulating Failover
+## Testing Alerts
 
-Trigger downtime on Blue:
+### Test Error Rate Detection
 
-```bash
-curl -X POST http://localhost:8081/chaos/start?mode=error
-```
-
-Nginx will automatically reroute to Green.
-Check again:
+Use the chaos endpoint to generate 5xx errors:
 
 ```bash
-curl -i http://localhost:8080/version
+# Start error mode on green pool
+curl -X POST "http://localhost:8082/chaos/start?mode=error"
+
+# Generate traffic through nginx
+for i in {1..100}; do 
+  curl -s http://localhost:8080/version
+  sleep 0.1
+done
+
+# Check Slack for error rate alert
+
+# Stop chaos mode
+curl -X POST "http://localhost:8082/chaos/stop"
 ```
 
-Expected headers:
+### Test Failover Detection
 
-```
-X-App-Pool: green
-X-Release-Id: v1.0.1
-```
-
-Stop chaos simulation:
+Use timeout mode to trigger health check failures:
 
 ```bash
-curl -X POST http://localhost:8081/chaos/stop
+# Start timeout mode on blue pool (if blue is active)
+curl -X POST "http://localhost:8081/chaos/start?mode=timeout"
+
+# Make requests - health checks will fail and trigger failover
+for i in {1..20}; do 
+  curl -s http://localhost:8080/healthz
+  sleep 1
+done
+
+# Check Slack for failover alert
+
+# Stop chaos mode
+curl -X POST "http://localhost:8081/chaos/stop"
 ```
 
 ---
 
-## 🧩 Project Structure
+## Viewing Logs
 
-```
-.
-├── docker-compose.yml
-├── .env
-├── nginx/
-│   ├── nginx.conf.template
-│   └── render-and-run.sh
-└── README.md
+```bash
+# View watcher logs
+docker-compose logs -f alert_watcher
+
+# View nginx logs
+docker-compose exec nginx tail -f /var/log/nginx/access.log
+
+# View application logs
+docker-compose logs -f app_blue
+docker-compose logs -f app_green
 ```
 
 ---
 
-## 🧰 Notes
+## Configuration
 
-* Nginx forwards all headers unchanged.
-* Failover happens instantly (no client errors).
-* Blue is active by default, Green is backup.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ACTIVE_POOL` | `blue` | Which pool receives traffic |
+| `ERROR_RATE_THRESHOLD` | `2` | Error rate % to trigger alert |
+| `WINDOW_SIZE` | `200` | Number of requests to monitor |
+| `ALERT_COOLDOWN_SEC` | `300` | Seconds between duplicate alerts |
+| `MAINTENANCE_MODE` | `false` | Suppress alerts during maintenance |

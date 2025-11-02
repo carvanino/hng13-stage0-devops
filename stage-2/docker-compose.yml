@@ -13,7 +13,6 @@ services:
     volumes:
       - ./nginx/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
       - ./nginx/render-and-run.sh:/usr/local/bin/render-and-run.sh
-      - ./nginx/logs:/var/log/nginx
     command:
       [
         "/bin/bash",
@@ -51,21 +50,3 @@ services:
       interval: 2s
       timeout: 2s
       retries: 3
-
-  alert_watcher:
-    build:
-      context: .
-      dockerfile: Dockerfile.watcher
-    container_name: alert_watcher
-    depends_on:
-      - nginx
-    environment:
-      - PYTHONUNBUFFERED=1
-      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
-      - ERROR_RATE_THRESHOLD=${ERROR_RATE_THRESHOLD}
-      - WINDOW_SIZE=${WINDOW_SIZE}
-      - ALERT_COOLDOWN_SEC=${ALERT_COOLDOWN_SEC}
-      - MAINTENANCE_MODE=${MAINTENANCE_MODE}
-    volumes:
-      - ./nginx/logs:/var/log/nginx:ro
-    restart: unless-stopped

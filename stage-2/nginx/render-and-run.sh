@@ -16,9 +16,5 @@ export PRIMARY BACKUP
 # Render template
 envsubst '\$PRIMARY \$BACKUP' < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf
 
-# ensure log dir exists and owned by nginx
-mkdir -p /var/log/nginx
-chown -R nginx:nginx /var/log/nginx || true
-
 # Start nginx
 nginx -g 'daemon off;'
